@@ -2,6 +2,8 @@
 A simple tool that monitor resources for a set of accounts and sends emails (by using Gmail server) if accounts run out of resources (RAM, CPU, NET).
 Also, tool will send daily reports about states for all accounts.
 
+<img width="706" alt="Screen Shot 2019-05-21 at 7 32 32 PM" src="https://user-images.githubusercontent.com/2269864/58137831-d319b680-7c01-11e9-839a-c21945ab59a3.png">
+
 ## Details
 Since the percentage of RAM is not very reliable metric, the estimated number of remaining transactions based on the average RAM per transaction size is used.
 
