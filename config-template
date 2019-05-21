@@ -1,0 +1,18 @@
+[DEFAULT]
+# The timeout for checking accounts in hours
+TIMEOUT=5
+
+# The timeout for sending statistics in hours
+STATS_TIMEOUT=24
+
+# Producer
+PRODUCER=https://eos.greymass.com
+
+ACCOUNTS=eosio.token,whaleextoken,community123,prospectorsg
+
+# Credentials (Gmail server)
+MAIL_LOGIN={email@gmail.com}
+MAIL_PASS={password}
+
+# Recipients
+RECIPIENTS=email1@gmail.com,email2@gmail.com
