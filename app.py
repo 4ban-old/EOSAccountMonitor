@@ -1,0 +1,226 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+import os
+import sched
+import json
+import time
+import datetime
+import requests
+import configparser
+from tabulate import tabulate
+from smtplib import SMTP
+import smtplib
+
+from email.mime.text import MIMEText
+from email.mime.application import MIMEApplication
+from email.mime.multipart import MIMEMultipart
+from email.header import Header
+
+heavy_transactions = ['volentixfrst']
+
+def get_resources(PRODUCER, account):
+    pars = {"account_name": account}
+    try:
+        data = requests.get(PRODUCER+"/v1/chain/get_account", json=pars)
+    except Exception as e:
+        print(e)
+    else:
+        return json.loads(data.text)
+
+def get_values(raw):
+    if raw['account_name'] in heavy_transactions:
+        try:
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/747))+" (747 bytes)"
+        except Exception as e:
+            print(e)
+    else:
+        try:
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/160))+" (160 bytes)"
+        except Exception as e:
+            print(e)
+
+    try:
+        net_perc = round((raw["net_limit"]["used"]/raw["net_limit"]["max"])*100)
+    except ZeroDivisionError:
+        net_perc = 0
+
+    try:
+        cpu_perc = round((raw["cpu_limit"]["used"]/raw["cpu_limit"]["max"])*100)
+    except ZeroDivisionError:
+        cpu_perc = 0
+
+    resource_obj = {
+        "account_name": raw["account_name"],
+        "ram_perc": round((raw["ram_usage"]/raw["ram_quota"])*100),
+        "ram_transactions": transactions,
+        "net_perc": net_perc,
+        "cpu_perc": cpu_perc,
+    }
+    return resource_obj
+
+def display(resources):
+    os.system("clear")
+    headers = ['Account Name', 'RAM', 'NET', 'CPU', 'Transactions left (RAM bytes per transaction) approx.']
+    data = []
+    for account in resources:
+        data.append([
+            account["account_name"],
+            str(account['ram_perc'])+" %",
+            str(account['net_perc'])+" %",
+            str(account['cpu_perc'])+" %",
+            account['ram_transactions']
+        ])
+    table = tabulate(data, headers=headers, tablefmt='github')
+    print(table)
+
+def mailer(data):
+    msg = MIMEMultipart('related')
+    msg['Subject'] = data['subject']
+    msg['To'] = data['to']
+    msg['Reply-to'] = 'demux.alert@gmail.com'
+    msg.attach(data['message'])
+
+    server = smtplib.SMTP("smtp.gmail.com:587")
+    server.ehlo()
+    server.starttls()
+    server.login(data['MAIL_LOGIN'], data['MAIL_PASS'])
+    server.sendmail(from_addr=MAIL_LOGIN, to_addrs=msg['To'].split(','), msg=msg.as_string())
+    server.quit()
+    # TODO logging of messages
+
+def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
+    d = datetime.datetime.now()
+    if stats:
+        data = dict()
+        data['MAIL_LOGIN'] = MAIL_LOGIN
+        data['MAIL_PASS'] = MAIL_PASS
+        data['subject'] = 'DAILY ACCOUNT STATISTICS: ' + str(d.strftime("%B")) + ' ' + str(d.day)
+        data['to'] = RECIPIENTS
+
+        style = u'<!DOCTYPE html> \
+            <html> \
+                <head> \
+                    <style> \
+                        table, td, th {border: 1px solid #ddd;text-align: left;} \
+                        table {border-collapse: collapse;width: 100%;} \
+                        th, td {padding: 15px;} \
+                    </style> \
+                </head> \
+                <body>'
+
+        table = u'<table>'
+        table += u'<tr><th>Account Name</th><th>RAM</th><th>NET</th><th>CPU</th><th>Transactions left (RAM bytes per transaction) approx.</th></tr>'
+        for account in resources:
+            table += u'<tr>'
+            table += u'<td>'+account['account_name']+u'</td>'
+            table += u'<td>'+str(account['ram_perc'])+u'%</td>'
+            table += u'<td>'+str(account['net_perc'])+u'%</td>'
+            table += u'<td>'+str(account['cpu_perc'])+u'%</td>'
+            table += u'<td>'+account['ram_transactions']+u'</td>'
+            table += u'</tr>'
+        table += u'</table><br>'
+        end = u'</body></html>'
+
+        html = style + u'<div>The daily account statistics.</div><br>' + \
+            table + str(d) + end
+        data['message'] = MIMEText(html, 'html', 'utf-8')
+        mailer(data)
+    else:
+        data = dict()
+        data['MAIL_LOGIN'] = MAIL_LOGIN
+        data['MAIL_PASS'] = MAIL_PASS
+        data['subject'] = 'ACCOUNT RESOURCE ALERT'
+        data['to'] = RECIPIENTS
+
+        to_send = dict()
+        for account in resources:
+            if account['ram_perc']>=90 or int(account['ram_transactions'].split(' ')[0])<=30:
+                if account['account_name'] not in to_send.keys():
+                    to_send[account['account_name']] = account
+            if account['net_perc']>= 90:
+                if account['account_name'] not in to_send.keys():
+                    to_send[account['account_name']] = account
+            if account['cpu_perc']>= 90:
+                if account['account_name'] not in to_send.keys():
+                    to_send[account['account_name']] = account
+
+        style = u'<!DOCTYPE html> \
+            <html> \
+                <head> \
+                    <style> \
+                        table, td, th {border: 1px solid #ddd;text-align: left;} \
+                        table {border-collapse: collapse;width: 100%;} \
+                        th, td {padding: 15px;} \
+                        th {background-color:#983628; color:#e4e4e4} \
+                        td {background-color: #F15152} \
+                    </style> \
+                </head> \
+                <body>'
+
+        table = u'<table>'
+        table += u'<tr><th>Account Name</th><th>RAM</th><th>NET</th><th>CPU</th><th>Transactions left (RAM bytes per transaction) approx.</th></tr>'
+        for value in to_send.values():
+            table += u'<tr>'
+            table += u'<td>'+value['account_name']+u'</td>'
+            table += u'<td>'+str(value['ram_perc'])+u'%</td>'
+            table += u'<td>'+str(value['net_perc'])+u'%</td>'
+            table += u'<td>'+str(value['cpu_perc'])+u'%</td>'
+            table += u'<td>'+value['ram_transactions']+u'</td>'
+            table += u'</tr>'
+        table += u'</table><br>'
+        end = u'</body></html>'
+
+        html = style + u'<div>Some account seems to run out of resources.</div><br>' + \
+            table + str(d) + end
+        data['message'] = MIMEText(html, 'html', 'utf-8')
+        mailer(data)
+
+def tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
+    print("...")
+    resources = []
+    for account in ACCOUNTS:
+        raw = get_resources(PRODUCER, account)
+        resources.append(get_values(raw))
+    if not stats:
+        display(resources)
+        notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS)
+    else:
+        notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats)
+
+if __name__ == "__main__":
+    config = configparser.ConfigParser()
+    delayer = sched.scheduler(time.time, time.sleep)
+    try:
+        config.read('config')
+    except Exception as e:
+        print(e)
+    else:
+        default = config['DEFAULT']
+        TIMEOUT = int(default.get('TIMEOUT')) or 1
+        STATS_TIMEOUT = int(default.get('STATS_TIMEOUT')) or 24
+        PRODUCER = default.get('PRODUCER') or 'https://eos.greymass.com'
+        ACCOUNTS = default.get('ACCOUNTS').split(',') or ['eosio.token']
+        MAIL_LOGIN = default.get('MAIL_LOGIN') or ''
+        MAIL_PASS = default.get('MAIL_PASS') or ''
+        RECIPIENTS = default.get('RECIPIENTS') or 'remasik@gmail.com'
+
+    def run_task():
+        try:
+            tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS)
+        finally:
+            delayer.enter(TIMEOUT*3600, 1, run_task)
+    run_task()
+
+    def run_stats():
+        try:
+            tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=True)
+        finally:
+            delayer.enter(STATS_TIMEOUT*3600, 1, run_stats)
+    run_stats()
+    try:
+        delayer.run()
+    except KeyboardInterrupt:
+        print('\nKeyboard interruption. \nExit.')
+    except Exception as e:
+        print(e)
