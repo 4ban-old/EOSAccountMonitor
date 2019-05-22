@@ -41,6 +41,13 @@ MAIL_PASS={password}
 
 # Recipients
 RECIPIENTS=email1@gmail.com,email2@gmail.com
+
+# Common transaction (bytes)
+TR_USE=160
+
+# Heavy transaction (bytes)
+HEAVY_TR_USE=747
+HEAVY_ACCOUNTS=accountname
 ```
 
 Run: `python3 app.py`

@@ -17,7 +17,9 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 
-heavy_transactions = ['volentixfrst']
+TR_USE = ''
+HEAVY_TR_USE = ''
+HEAVY_ACCOUNTS = []
 
 def get_resources(PRODUCER, account):
     pars = {"account_name": account}
@@ -29,14 +31,14 @@ def get_resources(PRODUCER, account):
         return json.loads(data.text)
 
 def get_values(raw):
-    if raw['account_name'] in heavy_transactions:
+    if raw['account_name'] in HEAVY_ACCOUNTS:
         try:
-            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/747))+" (747 bytes)"
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/HEAVY_TR_USE))+" (747 bytes)"
         except Exception as e:
             print(e)
     else:
         try:
-            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/160))+" (160 bytes)"
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/TR_USE))+" (160 bytes)"
         except Exception as e:
             print(e)
 
@@ -204,6 +206,9 @@ if __name__ == "__main__":
         MAIL_LOGIN = default.get('MAIL_LOGIN') or ''
         MAIL_PASS = default.get('MAIL_PASS') or ''
         RECIPIENTS = default.get('RECIPIENTS') or 'remasik@gmail.com'
+        TR_USE = int(default.get('TR_USE')) or 160
+        HEAVY_TR_USE = int(default.get('HEAVY_TR_USE')) or 500
+        HEAVY_ACCOUNTS = default.get('HEAVY_ACCOUNTS').split(',') or []
 
     def run_task():
         try:
