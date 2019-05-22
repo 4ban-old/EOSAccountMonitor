@@ -33,12 +33,12 @@ def get_resources(PRODUCER, account):
 def get_values(raw):
     if raw['account_name'] in HEAVY_ACCOUNTS:
         try:
-            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/HEAVY_TR_USE))+" (747 bytes)"
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/HEAVY_TR_USE))+" ("+str(HEAVY_TR_USE)+" bytes)"
         except Exception as e:
             print(e)
     else:
         try:
-            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/TR_USE))+" (160 bytes)"
+            transactions = str(round((raw["ram_quota"]-raw["ram_usage"])/TR_USE))+" ("+str(TR_USE)+" bytes)"
         except Exception as e:
             print(e)
 
