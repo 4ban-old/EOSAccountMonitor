@@ -11,6 +11,7 @@ import configparser
 from tabulate import tabulate
 from smtplib import SMTP
 import smtplib
+import logging
 
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -73,8 +74,12 @@ def display(resources):
             str(account['cpu_perc'])+" %",
             account['ram_transactions']
         ])
-    table = tabulate(data, headers=headers, tablefmt='github')
-    print(table)
+    try:
+        table = tabulate(data, headers=headers, tablefmt='github')
+    except Exception as e:
+        print(e)
+    else:
+        print(table)
 
 def mailer(data):
     msg = MIMEMultipart('related')
@@ -88,8 +93,8 @@ def mailer(data):
     server.starttls()
     server.login(data['MAIL_LOGIN'], data['MAIL_PASS'])
     server.sendmail(from_addr=MAIL_LOGIN, to_addrs=msg['To'].split(','), msg=msg.as_string())
+    logging.info('Message sent: %s', msg['Subject'])
     server.quit()
-    # TODO logging of messages
 
 def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
     d = datetime.datetime.now()
@@ -107,6 +112,7 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
                         table, td, th {border: 1px solid #ddd;text-align: left;} \
                         table {border-collapse: collapse;width: 100%;} \
                         th, td {padding: 15px;} \
+                        .date {background-color: #454545; text-align: center; width:20%; color:#e4e4e4} \
                     </style> \
                 </head> \
                 <body>'
@@ -125,7 +131,7 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
         end = u'</body></html>'
 
         html = style + u'<div>The daily account statistics.</div><br>' + \
-            table + str(d) + end
+            table + u'<div class="date">' + str(d) + u'</div>' + end
         data['message'] = MIMEText(html, 'html', 'utf-8')
         mailer(data)
     else:
@@ -156,6 +162,7 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
                         th, td {padding: 15px;} \
                         th {background-color:#983628; color:#e4e4e4} \
                         td {background-color: #F15152} \
+                        .date {background-color: #454545; text-align: center; width:20%; color:#e4e4e4} \
                     </style> \
                 </head> \
                 <body>'
@@ -174,7 +181,7 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
         end = u'</body></html>'
 
         html = style + u'<div>Some account seems to run out of resources.</div><br>' + \
-            table + str(d) + end
+            table + u'<div class="date">' + str(d) + u'</div>' + end
         data['message'] = MIMEText(html, 'html', 'utf-8')
         mailer(data)
 
@@ -191,11 +198,22 @@ def tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
         notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats)
 
 if __name__ == "__main__":
+    try:
+        logging.basicConfig(format='%(levelname)s:%(asctime)s:%(message)s',
+                            filename='eosaccountmonitor.log',
+                            level=logging.DEBUG,
+                            datefmt='%m/%d/%Y %I:%M:%S %p')
+    except Exception as e:
+        print(e)
+    else:
+        logging.info('Launch the app.')
     config = configparser.ConfigParser()
     delayer = sched.scheduler(time.time, time.sleep)
     try:
         config.read('config')
+        logging.info('Config reading.')
     except Exception as e:
+        logging.error('Could not read the config: %s', e)
         print(e)
     else:
         default = config['DEFAULT']
@@ -225,7 +243,10 @@ if __name__ == "__main__":
     run_stats()
     try:
         delayer.run()
+        logging.info('Run scheduler.')
     except KeyboardInterrupt:
+        logging.info('Exit the app. Keyboard interruption.')
         print('\nKeyboard interruption. \nExit.')
     except Exception as e:
+        logging.error('Exit by other reason: %s', e)
         print(e)
