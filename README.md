@@ -18,6 +18,7 @@ Such options will be added in the future release soon. For now you can modify it
 The script is written by using Python 3.
 
 - `pip3 install requests`
+- `pip3 install tabulate`
 
 ## Usage
 Fill the config file:
@@ -41,3 +42,5 @@ MAIL_PASS={password}
 # Recipients
 RECIPIENTS=email1@gmail.com,email2@gmail.com
 ```
+
+Run: `python3 app.py`
