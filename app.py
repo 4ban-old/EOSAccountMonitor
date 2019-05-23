@@ -88,7 +88,7 @@ def mailer(data):
     msg['Reply-to'] = 'demux.alert@gmail.com'
     msg.attach(data['message'])
 
-    server = smtplib.SMTP("smtp.gmail.com:587")
+    server = smtplib.SMTP("smtp.gmail.com", 587)
     server.ehlo()
     server.starttls()
     server.login(data['MAIL_LOGIN'], data['MAIL_PASS'])
@@ -169,6 +169,7 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
 
         table = u'<table>'
         table += u'<tr><th>Account Name</th><th>RAM</th><th>NET</th><th>CPU</th><th>Transactions left (RAM bytes per transaction) approx.</th></tr>'
+
         for value in to_send.values():
             table += u'<tr>'
             table += u'<td>'+value['account_name']+u'</td>'
@@ -183,7 +184,11 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
         html = style + u'<div>Some account seems to run out of resources.</div><br>' + \
             table + u'<div class="date">' + str(d) + u'</div>' + end
         data['message'] = MIMEText(html, 'html', 'utf-8')
-        mailer(data)
+
+        if to_send:
+            mailer(data)
+        else:
+            logging.info('No alerts')
 
 def tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
     print("...")
