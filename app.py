@@ -142,56 +142,67 @@ def notifyer(resources, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
         data['to'] = RECIPIENTS
 
         to_send = dict()
+        reasons = []
         for account in resources:
             if account['ram_perc']>=90 or int(account['ram_transactions'].split(' ')[0])<=30:
                 if account['account_name'] not in to_send.keys():
                     to_send[account['account_name']] = account
+                    reasons.append('RAM percentage or Low amount of remaining transactions.')
             if account['net_perc']>= 90:
                 if account['account_name'] not in to_send.keys():
                     to_send[account['account_name']] = account
+                    reasons.append('NET percentage.')
             if account['cpu_perc']>= 90:
                 if account['account_name'] not in to_send.keys():
                     to_send[account['account_name']] = account
-
-        style = u'<!DOCTYPE html> \
-            <html> \
-                <head> \
-                    <style> \
-                        table, td, th {border: 1px solid #ddd;text-align: left;} \
-                        table {border-collapse: collapse;width: 100%;} \
-                        th, td {padding: 15px;} \
-                        th {background-color:#983628; color:#e4e4e4} \
-                        td {background-color: #F15152} \
-                        .date {background-color: #454545; text-align: center; width:20%; color:#e4e4e4} \
-                    </style> \
-                </head> \
-                <body>'
-
-        table = u'<table>'
-        table += u'<tr><th>Account Name</th><th>RAM</th><th>NET</th><th>CPU</th><th>Transactions left (RAM bytes per transaction) approx.</th></tr>'
-
-        for value in to_send.values():
-            table += u'<tr>'
-            table += u'<td>'+value['account_name']+u'</td>'
-            table += u'<td>'+str(value['ram_perc'])+u'%</td>'
-            table += u'<td>'+str(value['net_perc'])+u'%</td>'
-            table += u'<td>'+str(value['cpu_perc'])+u'%</td>'
-            table += u'<td>'+value['ram_transactions']+u'</td>'
-            table += u'</tr>'
-        table += u'</table><br>'
-        end = u'</body></html>'
-
-        html = style + u'<div>Some account seems to run out of resources.</div><br>' + \
-            table + u'<div class="date">' + str(d) + u'</div>' + end
-        data['message'] = MIMEText(html, 'html', 'utf-8')
-
+                    reasons.append('CPU percentage.')
         if to_send:
+            style = u'<!DOCTYPE html> \
+                <html> \
+                    <head> \
+                        <style> \
+                            table, td, th {border: 1px solid #ddd;text-align: left;} \
+                            table {border-collapse: collapse;width: 100%;} \
+                            th, td {padding: 15px;} \
+                            th {background-color:#983628; color:#e4e4e4} \
+                            td {background-color: #F15152} \
+                            .date {background-color: #454545; text-align: center; width:20%; color:#e4e4e4} \
+                        </style> \
+                    </head> \
+                    <body>'
+
+            table = u'<table>'
+            table += u'<tr><th>Account Name</th><th>RAM</th><th>NET</th><th>CPU</th><th>Transactions left (RAM bytes per transaction) approx.</th></tr>'
+
+            for value in to_send.values():
+                table += u'<tr>'
+                table += u'<td>'+value['account_name']+u'</td>'
+                table += u'<td>'+str(value['ram_perc'])+u'%</td>'
+                table += u'<td>'+str(value['net_perc'])+u'%</td>'
+                table += u'<td>'+str(value['cpu_perc'])+u'%</td>'
+                table += u'<td>'+value['ram_transactions']+u'</td>'
+                table += u'</tr>'
+            table += u'</table><br>'
+            end = u'</body></html>'
+
+            if reasons:
+                reason = u'<div class="reason">'
+                for x in reasons:
+                    reason += u'<p>' + x + u'</p>'
+                reason += u'</div><br>'
+
+            html = style + u'<div>Some account seems to run out of resources.</div><br>' + \
+                reason + \
+                table + u'<div class="date">' + str(d) + u'</div>' + end
+            data['message'] = MIMEText(html, 'html', 'utf-8')
+
+            logging.info('Alert: %s', to_send)
             mailer(data)
         else:
             logging.info('No alerts')
 
 def tester(PRODUCER, ACCOUNTS, MAIL_LOGIN, MAIL_PASS, RECIPIENTS, stats=False):
-    print("...")
+    logging.debug('Run checks.')
     resources = []
     for account in ACCOUNTS:
         raw = get_resources(PRODUCER, account)
