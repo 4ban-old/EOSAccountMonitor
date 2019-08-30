@@ -1,4 +1,5 @@
 # eosaccountmonitor
+[<img src="https://raw.githubusercontent.com/4ban/EOSAccountMonitor/master/.github/black_img.png">](https://www.buymeacoffee.com/4ban)
 
 [![standard-readme compliant](https://img.shields.io/badge/standard--readme-OK-green.svg?style=flat-square)](https://github.com/RichardLitt/standard-readme)
 
